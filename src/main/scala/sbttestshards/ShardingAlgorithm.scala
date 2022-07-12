@@ -4,26 +4,24 @@ import java.time.Duration
 
 // This trait is open so that users can implement a custom `ShardingAlgorithm` if they'd like
 trait ShardingAlgorithm {
-  def isInShard(specName: String, shardContext: ShardContext): Boolean
+
+  /** Determines whether the specified spec will run on this shard or not. */
+  def shouldRun(specName: String, shardContext: ShardContext): Boolean
 }
 
 object ShardingAlgorithm {
   final case object Always extends ShardingAlgorithm {
-    override def isInShard(specName: String, shardContext: ShardContext): Boolean = true
+    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = true
   }
 
   final case object Never extends ShardingAlgorithm {
-    override def isInShard(specName: String, shardContext: ShardContext): Boolean = false
+    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = false
   }
 
   final case object SuiteName extends ShardingAlgorithm {
-    override def isInShard(specName: String, shardContext: ShardContext): Boolean = {
-      val shouldRun = specName.hashCode % shardContext.testShardCount == shardContext.testShard
-
-      println(s"${specName} will run? ${shouldRun}")
-
-      shouldRun
-    }
+    override def shouldRun(specName: String, shardContext: ShardContext): Boolean =
+      // TODO: Test whether `hashCode` gets a good distribution. Otherwise implement a different hash algorithm.
+      specName.hashCode.abs % shardContext.testShardCount == shardContext.testShard
   }
 
   final case class Balance(
@@ -35,13 +33,10 @@ object ShardingAlgorithm {
     private val averageTime: Option[Duration] = {
       val allTimeTaken = tests.flatMap(_.timeTaken)
       allTimeTaken.reduceOption(_.plus(_)).map { d =>
-        if (d.isZero) Duration.ZERO
+        if (allTimeTaken.isEmpty) Duration.ZERO
         else d.dividedBy(allTimeTaken.length)
       }
     }
-
-    private final case class TestSuiteInfoSimple(name: String, timeTaken: Duration)
-    private final case class TestBucket(var tests: List[TestSuiteInfoSimple], var sum: Duration)
 
     private def createBucketMap(testShardCount: Int) = {
       val durationOrdering: Ordering[Duration] = (a: Duration, b: Duration) => a.compareTo(b)
@@ -70,10 +65,13 @@ object ShardingAlgorithm {
     // TODO: Maybe print a warning if it's not a multiple of it.
     private val bucketMap: Map[String, Int] = createBucketMap(bucketCount)
 
-    def isInShard(specName: String, shardContext: ShardContext): Boolean =
+    def shouldRun(specName: String, shardContext: ShardContext): Boolean =
       bucketMap.get(specName) match {
         case Some(bucketIndex) => bucketIndex == shardContext.testShard
-        case None              => fallbackShardingAlgorithm.isInShard(specName, shardContext)
+        case None              => fallbackShardingAlgorithm.shouldRun(specName, shardContext)
       }
   }
+
+  private final case class TestSuiteInfoSimple(name: String, timeTaken: Duration)
+  private final case class TestBucket(var tests: List[TestSuiteInfoSimple], var sum: Duration)
 }
