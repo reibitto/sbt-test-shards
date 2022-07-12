@@ -10,20 +10,27 @@ trait ShardingAlgorithm {
 }
 
 object ShardingAlgorithm {
-  final case object Always extends ShardingAlgorithm {
-    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = true
-  }
 
-  final case object Never extends ShardingAlgorithm {
-    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = false
-  }
-
+  /** Shards by suite the name. This is the most reasonable default as it requires no additional setup. */
   final case object SuiteName extends ShardingAlgorithm {
     override def shouldRun(specName: String, shardContext: ShardContext): Boolean =
       // TODO: Test whether `hashCode` gets a good distribution. Otherwise implement a different hash algorithm.
       specName.hashCode.abs % shardContext.testShardCount == shardContext.testShard
   }
 
+  /** Will always mark the test to run on this shard. Useful for debugging or for fallback algorithms. */
+  final case object Always extends ShardingAlgorithm {
+    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = true
+  }
+
+  /** Will never mark the test to run on this shard. Useful for debugging or for fallback algorithms. */
+  final case object Never extends ShardingAlgorithm {
+    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = false
+  }
+
+  /** Attempts to balance the shards by execution time so that no one shard takes significantly longer to complete than
+    * another.
+    */
   final case class Balance(
     tests: List[TestSuiteInfo],
     bucketCount: Int,
@@ -38,6 +45,9 @@ object ShardingAlgorithm {
       }
     }
 
+    // TODO: This uses a naive greedy algorithm for partitioning into approximately equal subsets. While this problem
+    // is NP-complete, there's a lot of room for improvement with other algorithms. Dynamic programming should be
+    // possible here.
     private def createBucketMap(testShardCount: Int) = {
       val durationOrdering: Ordering[Duration] = (a: Duration, b: Duration) => a.compareTo(b)
 
