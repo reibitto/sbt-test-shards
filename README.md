@@ -1,5 +1,7 @@
 # sbt test shards
 
+![Scala CI](https://github.com/reibitto/sbt-test-shards/actions/workflows/scala.yml/badge.svg)
+
 *An sbt plugin for splitting tests across multiple shards to speed up tests.*
 
 ## What is it?
