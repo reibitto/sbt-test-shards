@@ -11,34 +11,43 @@ trait ShardingAlgorithm {
 
 object ShardingAlgorithm {
 
-  /** Shards by suite the name. This is the most reasonable default as it requires no additional setup. */
+  /** Shards by suite the name. This is the most reasonable default as it
+    * requires no additional setup.
+    */
   final case object SuiteName extends ShardingAlgorithm {
+
     override def shouldRun(specName: String, shardContext: ShardContext): Boolean =
       // TODO: Test whether `hashCode` gets a good distribution. Otherwise implement a different hash algorithm.
       specName.hashCode.abs % shardContext.testShardCount == shardContext.testShard
   }
 
-  /** Will always mark the test to run on this shard. Useful for debugging or for fallback algorithms. */
+  /** Will always mark the test to run on this shard. Useful for debugging or
+    * for fallback algorithms.
+    */
   final case object Always extends ShardingAlgorithm {
     override def shouldRun(specName: String, shardContext: ShardContext): Boolean = true
   }
 
-  /** Will never mark the test to run on this shard. Useful for debugging or for fallback algorithms. */
+  /** Will never mark the test to run on this shard. Useful for debugging or for
+    * fallback algorithms.
+    */
   final case object Never extends ShardingAlgorithm {
     override def shouldRun(specName: String, shardContext: ShardContext): Boolean = false
   }
 
-  /** Attempts to balance the shards by execution time so that no one shard takes significantly longer to complete than
-    * another.
+  /** Attempts to balance the shards by execution time so that no one shard
+    * takes significantly longer to complete than another.
     */
   final case class Balance(
-    tests: List[TestSuiteInfo],
-    bucketCount: Int,
-    fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
+      specs: List[SpecInfo],
+      shardsInfo: ShardingInfo,
+      fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
   ) extends ShardingAlgorithm {
+
     // TODO: Median might be better here?
     private val averageTime: Option[Duration] = {
-      val allTimeTaken = tests.flatMap(_.timeTaken)
+      val allTimeTaken = specs.flatMap(_.timeTaken)
+
       allTimeTaken.reduceOption(_.plus(_)).map { d =>
         if (allTimeTaken.isEmpty) Duration.ZERO
         else d.dividedBy(allTimeTaken.length)
@@ -48,14 +57,19 @@ object ShardingAlgorithm {
     // TODO: This uses a naive greedy algorithm for partitioning into approximately equal subsets. While this problem
     // is NP-complete, there's a lot of room for improvement with other algorithms. Dynamic programming should be
     // possible here.
-    private def createBucketMap(testShardCount: Int) = {
+    def distributeEvenly: Map[TestSuiteInfoSimple, Int] = {
       val durationOrdering: Ordering[Duration] = (a: Duration, b: Duration) => a.compareTo(b)
 
-      val allTests = tests
+      val allTests = specs
         .map(t => TestSuiteInfoSimple(t.name, t.timeTaken.getOrElse(averageTime.getOrElse(Duration.ZERO))))
         .sortBy(_.timeTaken)(durationOrdering.reverse)
 
-      val buckets = Array.fill(testShardCount)(TestBucket(Nil, Duration.ZERO))
+      val buckets = (0 until shardsInfo.shardCount).map { shardIndex =>
+        TestBucket(
+          tests = Nil,
+          sum = shardsInfo.initialDurations.getOrElse(shardIndex, Duration.ZERO)
+        )
+      }.toArray
 
       allTests.foreach { test =>
         val minBucket = buckets.minBy(_.sum)
@@ -66,14 +80,14 @@ object ShardingAlgorithm {
 
       buckets.zipWithIndex.flatMap { case (bucket, i) =>
         bucket.tests.map { info =>
-          info.name -> i
+          info -> i
         }
       }.toMap
     }
 
-    // `bucketCount` doesn't necessary need to match `testShardCount`, but ideally it should be a multiple of it.
-    // TODO: Maybe print a warning if it's not a multiple of it.
-    private val bucketMap: Map[String, Int] = createBucketMap(bucketCount)
+    private val bucketMap: Map[String, Int] = distributeEvenly.map { case (k, v) =>
+      k.name -> v
+    }
 
     def shouldRun(specName: String, shardContext: ShardContext): Boolean =
       bucketMap.get(specName) match {
@@ -82,6 +96,7 @@ object ShardingAlgorithm {
       }
   }
 
-  private final case class TestSuiteInfoSimple(name: String, timeTaken: Duration)
-  private final case class TestBucket(var tests: List[TestSuiteInfoSimple], var sum: Duration)
+  final case class TestSuiteInfoSimple(name: String, timeTaken: Duration)
+
+  final private case class TestBucket(var tests: List[TestSuiteInfoSimple], var sum: Duration)
 }

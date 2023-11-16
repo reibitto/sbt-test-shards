@@ -1,21 +1,25 @@
-import sbtwelcome._
+import sbtwelcome.*
 
 inThisBuild(
   List(
     organization := "com.github.reibitto",
-    homepage     := Some(url("https://github.com/reibitto/sbt-test-shards")),
-    licenses     := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
-    developers   := List(
+    homepage := Some(url("https://github.com/reibitto/sbt-test-shards")),
+    licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
+    developers := List(
       Developer("reibitto", "reibitto", "reibitto@users.noreply.github.com", url("https://reibitto.github.io"))
     )
   )
 )
 
 lazy val root = (project in file(".")).settings(
-  name         := "sbt-test-shards",
+  name := "sbt-test-shards",
   organization := "com.github.reibitto",
-  scalaVersion := "2.12.16",
-  sbtPlugin    := true
+  scalaVersion := "2.12.18",
+  sbtPlugin := true,
+  libraryDependencies ++= Seq(
+    "org.scalameta" %% "munit" % "0.7.29" % Test,
+    "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
+  )
 )
 
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
@@ -41,9 +45,9 @@ logo :=
      |""".stripMargin
 
 usefulTasks := Seq(
-  UsefulTask("a", "~compile", "Compile with file-watch enabled"),
-  UsefulTask("b", "fmt", "Run scalafmt on the entire project"),
-  UsefulTask("c", "publishLocal", "Publish the sbt plugin locally so that you can consume it from a different project")
+  UsefulTask("~compile", "Compile with file-watch enabled"),
+  UsefulTask("fmt", "Run scalafmt on the entire project"),
+  UsefulTask("publishLocal", "Publish the sbt plugin locally so that you can consume it from a different project")
 )
 
 logoColor := scala.Console.MAGENTA

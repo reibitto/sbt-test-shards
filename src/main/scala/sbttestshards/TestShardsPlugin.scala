@@ -1,14 +1,15 @@
 package sbttestshards
 
-import sbt.Keys.*
 import sbt.*
+import sbt.Keys.*
 
 object TestShardsPlugin extends AutoPlugin {
+
   object autoImport {
-    val testShard         = settingKey[Int]("testShard")
-    val testShardCount    = settingKey[Int]("testShardCount")
+    val testShard = settingKey[Int]("testShard")
+    val testShardCount = settingKey[Int]("testShardCount")
     val shardingAlgorithm = settingKey[ShardingAlgorithm]("shardingAlgorithm")
-    val testShardDebug    = settingKey[Boolean]("testShardDebug")
+    val testShardDebug = settingKey[Boolean]("testShardDebug")
   }
 
   import autoImport.*
@@ -22,10 +23,10 @@ object TestShardsPlugin extends AutoPlugin {
 
   override lazy val projectSettings: Seq[Def.Setting[?]] =
     Seq(
-      testShard         := stringConfig("TEST_SHARD", "0").toInt,
-      testShardCount    := stringConfig("TEST_SHARD_COUNT", "1").toInt,
+      testShard := stringConfig("TEST_SHARD", "0").toInt,
+      testShardCount := stringConfig("TEST_SHARD_COUNT", "1").toInt,
       shardingAlgorithm := ShardingAlgorithm.SuiteName,
-      testShardDebug    := false,
+      testShardDebug := false,
       Test / testOptions += {
         val shardContext = ShardContext(testShard.value, testShardCount.value, sLog.value)
         Tests.Filter { specName =>

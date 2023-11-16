@@ -7,16 +7,20 @@ on:
     branches: [master, main]
 
 jobs:
-  build:
+  jvm:
+    strategy:
+      fail-fast: false
+      matrix:
+        scala: [2.12.18]
+        java: [adopt@1.11, adopt@1.8]
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up JDK 11
-        uses: actions/setup-java@v1
+      - name: Set up environment
+        uses: olafurpg/setup-scala@v10
         with:
-          java-version: 11
+          java-version: ${{ matrix.java }}
 
       - name: Run tests
-        run: sbt -Dscalac.unused.enabled=true fmtCheck test
+        run: sbt ++${{ matrix.scala}} fmtCheck test
