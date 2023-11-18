@@ -43,21 +43,22 @@ object JUnitReportParser {
   def listReportsRecursively(reportDirectory: Path): Iterator[Path] =
     Files.walk(reportDirectory).iterator().asScala.filter(_.toString.endsWith(".xml"))
 
-  def parseDirectories(reportDirectories: Path*): FullTestReport =
-    reportDirectories.map(parseDirectory).reduceLeft(_ ++ _)
-
-  def parseDirectory(reportDirectory: Path): FullTestReport =
+  def parseDirectories(reportDirectories: Seq[Path]): FullTestReport =
     FullTestReport(
-      listReports(reportDirectory).map { reportFile =>
-        parseReport(reportFile)
-      }.toSeq
+      reportDirectories.flatMap { dir =>
+        listReports(dir).map { reportFile =>
+          parseReport(reportFile)
+        }
+      }
     )
 
-  def parseDirectoryRecursively(reportDirectory: Path): FullTestReport =
+  def parseDirectoriesRecursively(reportDirectories: Seq[Path]): FullTestReport =
     FullTestReport(
-      listReportsRecursively(reportDirectory).map { reportFile =>
-        parseReport(reportFile)
-      }.toSeq
+      reportDirectories.flatMap { dir =>
+        listReportsRecursively(dir).map { reportFile =>
+          parseReport(reportFile)
+        }
+      }
     )
 
   def parseReport(reportFile: Path): SpecTestReport = {

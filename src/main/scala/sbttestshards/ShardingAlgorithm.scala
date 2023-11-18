@@ -1,6 +1,11 @@
 package sbttestshards
 
+import sbttestshards.parsers.JUnitReportParser
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 import java.time.Duration
+import scala.util.hashing.MurmurHash3
 
 // This trait is open so that users can implement a custom `ShardingAlgorithm` if they'd like
 trait ShardingAlgorithm {
@@ -17,8 +22,9 @@ object ShardingAlgorithm {
   final case object SuiteName extends ShardingAlgorithm {
 
     override def shouldRun(specName: String, shardContext: ShardContext): Boolean =
-      // TODO: Test whether `hashCode` gets a good distribution. Otherwise implement a different hash algorithm.
-      specName.hashCode.abs % shardContext.testShardCount == shardContext.testShard
+      MurmurHash3
+        .bytesHash(specName.getBytes(StandardCharsets.UTF_8))
+        .abs % shardContext.testShardCount == shardContext.testShard
   }
 
   /** Will always mark the test to run on this shard. Useful for debugging or
@@ -35,11 +41,27 @@ object ShardingAlgorithm {
     override def shouldRun(specName: String, shardContext: ShardContext): Boolean = false
   }
 
+  object Balance {
+
+    def fromJUnitReports(
+        reportDirectories: Seq[Path],
+        shardsInfo: ShardingInfo,
+        fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
+    ): Balance =
+      ShardingAlgorithm.Balance(
+        JUnitReportParser.parseDirectoriesRecursively(reportDirectories).testReports.map { r =>
+          SpecInfo(r.name, Some(Duration.ofMillis(r.timeTaken.toLong)))
+        },
+        shardsInfo,
+        fallbackShardingAlgorithm
+      )
+  }
+
   /** Attempts to balance the shards by execution time so that no one shard
     * takes significantly longer to complete than another.
     */
   final case class Balance(
-      specs: List[SpecInfo],
+      specs: Seq[SpecInfo],
       shardsInfo: ShardingInfo,
       fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
   ) extends ShardingAlgorithm {
