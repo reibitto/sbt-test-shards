@@ -80,11 +80,9 @@ object ShardingAlgorithm {
     // is NP-complete, there's a lot of room for improvement with other algorithms. Dynamic programming should be
     // possible here.
     def distributeEvenly: Map[TestSuiteInfoSimple, Int] = {
-      val durationOrdering: Ordering[Duration] = (a: Duration, b: Duration) => a.compareTo(b)
-
       val allTests = specs
         .map(t => TestSuiteInfoSimple(t.name, t.timeTaken.getOrElse(averageTime.getOrElse(Duration.ZERO))))
-        .sortBy(_.timeTaken)(durationOrdering.reverse)
+        .sortBy(_.timeTaken)(Orderings.duration.reverse)
 
       val buckets = (0 until shardsInfo.shardCount).map { shardIndex =>
         TestBucket(
