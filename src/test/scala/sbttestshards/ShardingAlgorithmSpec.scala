@@ -50,6 +50,22 @@ class ShardingAlgorithmSpec extends ScalaCheckSuite {
     }
   }
 
+  property("only choose shard if initialDuration indicates node started early") {
+    forAll { (tests: List[SpecInfo]) =>
+      val initialDurations = Map(0 -> Duration.ofMinutes(-1000))
+      val algo = ShardingAlgorithm.Balance(tests, ShardingInfo(3, initialDurations))
+
+      val bucketMap = algo.distributeEvenly.toSeq.groupBy(_._2).map { case (k, v) =>
+        k -> v.map(_._1.timeTaken).reduceOption(_.plus(_)).getOrElse(Duration.ZERO)
+      }
+
+      if (tests.isEmpty)
+        bucketMap.isEmpty
+      else
+        bucketMap.keys.toSeq == Seq(0)
+    }
+  }
+
   property("not choose shard if initialDuration exceeds the available time") {
     forAll { (tests: List[SpecInfo]) =>
       val initialDurations = Map(0 -> Duration.ofMinutes(1000))
