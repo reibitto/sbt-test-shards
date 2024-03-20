@@ -29,16 +29,15 @@ object TestShardsPlugin extends AutoPlugin {
       testShardDebug := false,
       Test / testOptions += {
         val shardContext = ShardContext(testShard.value, testShardCount.value, sLog.value)
+
         Tests.Filter { specName =>
           val isInShard = shardingAlgorithm.value.shouldRun(specName, shardContext)
 
-          if (testShardDebug.value) {
-            if (isInShard) {
-              sLog.value.info(s"`$specName` set to run on this shard.")
-            } else {
+          if (testShardDebug.value)
+            if (isInShard)
+              sLog.value.info(s"`$specName` set to run on this shard (#${testShard.value}).")
+            else
               sLog.value.warn(s"`$specName` skipped because it will run on another shard.")
-            }
-          }
 
           isInShard
         }

@@ -1,7 +1,6 @@
 package sbttestshards.parsers
 
-import java.nio.file.Files
-import java.nio.file.Path
+import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.*
 import scala.xml.XML
 
@@ -37,27 +36,34 @@ final case class SpecTestReport(
 
 object JUnitReportParser {
 
-  def listReports(reportDirectory: Path): Iterator[Path] =
-    Files.list(reportDirectory).iterator().asScala.filter(_.toString.endsWith(".xml"))
+  def listReports(reportDirectory: Path): Seq[Path] =
+    if (reportDirectory.toFile.exists())
+      Files.list(reportDirectory).iterator().asScala.filter(_.toString.endsWith(".xml")).toSeq.sortBy(_.toAbsolutePath)
+    else
+      Seq.empty
 
-  def listReportsRecursively(reportDirectory: Path): Iterator[Path] =
-    Files.walk(reportDirectory).iterator().asScala.filter(_.toString.endsWith(".xml"))
+  def listReportsRecursively(reportDirectory: Path): Seq[Path] =
+    if (reportDirectory.toFile.exists())
+      Files.walk(reportDirectory).iterator().asScala.filter(_.toString.endsWith(".xml")).toSeq.sortBy(_.toAbsolutePath)
+    else
+      Seq.empty
 
-  def parseDirectories(reportDirectories: Path*): FullTestReport =
-    reportDirectories.map(parseDirectory).reduceLeft(_ ++ _)
-
-  def parseDirectory(reportDirectory: Path): FullTestReport =
+  def parseDirectories(reportDirectories: Seq[Path]): FullTestReport =
     FullTestReport(
-      listReports(reportDirectory).map { reportFile =>
-        parseReport(reportFile)
-      }.toSeq
+      reportDirectories.flatMap { dir =>
+        listReports(dir).map { reportFile =>
+          parseReport(reportFile)
+        }
+      }
     )
 
-  def parseDirectoryRecursively(reportDirectory: Path): FullTestReport =
+  def parseDirectoriesRecursively(reportDirectories: Seq[Path]): FullTestReport =
     FullTestReport(
-      listReportsRecursively(reportDirectory).map { reportFile =>
-        parseReport(reportFile)
-      }.toSeq
+      reportDirectories.flatMap { dir =>
+        listReportsRecursively(dir).map { reportFile =>
+          parseReport(reportFile)
+        }
+      }
     )
 
   def parseReport(reportFile: Path): SpecTestReport = {
