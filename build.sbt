@@ -14,7 +14,7 @@ inThisBuild(
 lazy val root = (project in file(".")).settings(
   name := "sbt-test-shards",
   organization := "com.github.reibitto",
-  scalaVersion := "2.12.18",
+  scalaVersion := "2.12.19",
   sbtPlugin := true,
   libraryDependencies ++= Seq(
     "org.scalameta" %% "munit" % "0.7.29" % Test,
