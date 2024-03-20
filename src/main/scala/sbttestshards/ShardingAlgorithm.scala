@@ -50,7 +50,7 @@ object ShardingAlgorithm {
     ): Balance =
       ShardingAlgorithm.Balance(
         JUnitReportParser.parseDirectoriesRecursively(reportDirectories).testReports.map { r =>
-          SpecInfo(r.name, Some(Duration.ofMillis(r.timeTaken.toLong)))
+          SpecInfo(r.name, Some(Duration.ofMillis((r.timeTaken * 1000).toLong)))
         },
         shardsInfo,
         fallbackShardingAlgorithm
