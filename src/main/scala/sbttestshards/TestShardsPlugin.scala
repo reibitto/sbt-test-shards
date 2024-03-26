@@ -2,9 +2,7 @@ package sbttestshards
 
 import sbt.*
 import sbt.Keys.*
-import sbttestshards.parsers.JUnitReportParser
-
-import java.nio.file.Paths
+import sbttestshards.parsers.FullTestReport
 
 object TestShardsPlugin extends AutoPlugin {
 
@@ -19,11 +17,6 @@ object TestShardsPlugin extends AutoPlugin {
   import autoImport.*
 
   override def trigger = allRequirements
-
-  def stringConfig(key: String, default: String): String = {
-    val propertyKey = key.replace('_', '.').toLowerCase
-    sys.props.get(propertyKey).orElse(sys.env.get(key)).getOrElse(default)
-  }
 
   override lazy val projectSettings: Seq[Def.Setting[?]] =
     Seq(
@@ -50,16 +43,11 @@ object TestShardsPlugin extends AutoPlugin {
         val shardContext = ShardContext(testShard.value, testShardCount.value, sLog.value)
         val logger = shardContext.logger
         val algorithm = shardingAlgorithm.value
-
-        // TODO:: Make path customizable
-        val fullTestReport = JUnitReportParser.parseDirectoriesRecursively(
-          Seq(Paths.get(s"test-reports/main/resources/test-reports", moduleName.value))
-        )
-
+        val priorReport = algorithm.priorReport.getOrElse(FullTestReport.empty)
         val sbtSuiteNames = (Test / definedTestNames).value.toSet
-        val missingSuiteNames = sbtSuiteNames diff fullTestReport.testReports.map(_.name).toSet
+        val missingSuiteNames = sbtSuiteNames diff priorReport.testReports.map(_.name).toSet
 
-        val results = fullTestReport.testReports.map { suiteReport =>
+        val results = priorReport.testReports.map { suiteReport =>
           val shardResult = algorithm.check(suiteReport.name, shardContext)
 
           shardResult.testShard -> suiteReport
@@ -67,7 +55,7 @@ object TestShardsPlugin extends AutoPlugin {
           .groupBy(_._1)
 
         results.toSeq.sortBy(_._1).foreach { case (k, v) =>
-          val totalTime = v.map(_._2.timeTaken).sum
+          val totalTime = BigDecimal(v.map(_._2.timeTaken).sum).setScale(3, BigDecimal.RoundingMode.HALF_UP)
 
           logger.info(s"[${moduleName.value}] Shard $k expected to take $totalTime s")
 
@@ -76,7 +64,7 @@ object TestShardsPlugin extends AutoPlugin {
           }
         }
 
-        if(missingSuiteNames.nonEmpty) {
+        if (missingSuiteNames.nonEmpty) {
           logger.warn(s"Detected ${missingSuiteNames.size} suites that don't have a test report")
 
           missingSuiteNames.foreach { s =>
@@ -85,5 +73,10 @@ object TestShardsPlugin extends AutoPlugin {
         }
       }
     )
+
+  private def stringConfig(key: String, default: String): String = {
+    val propertyKey = key.replace('_', '.').toLowerCase
+    sys.props.get(propertyKey).orElse(sys.env.get(key)).getOrElse(default)
+  }
 
 }

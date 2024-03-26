@@ -1,6 +1,7 @@
 package sbttestshards.parsers
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Files
+import java.nio.file.Path
 import scala.jdk.CollectionConverters.*
 import scala.xml.XML
 
@@ -16,6 +17,10 @@ final case class FullTestReport(testReports: Seq[SuiteReport]) {
   def hasFailures: Boolean = testReports.exists(_.hasFailures)
 
   def ++(other: FullTestReport): FullTestReport = FullTestReport(testReports ++ other.testReports)
+}
+
+object FullTestReport {
+  def empty: FullTestReport = FullTestReport(Seq.empty)
 }
 
 final case class SuiteReport(
@@ -83,9 +88,8 @@ object JUnitReportParser {
         val testName = (node \@ "name").trim
 
         Some(testName)
-      } else {
+      } else
         None
-      }
     }.collect { case Some(testName) =>
       testName
     }

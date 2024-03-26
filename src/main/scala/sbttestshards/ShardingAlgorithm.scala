@@ -1,6 +1,6 @@
 package sbttestshards
 
-import sbttestshards.parsers.JUnitReportParser
+import sbttestshards.parsers.{FullTestReport, JUnitReportParser}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
@@ -9,6 +9,8 @@ import scala.util.hashing.MurmurHash3
 
 // This trait is open so that users can implement a custom `ShardingAlgorithm` if they'd like
 trait ShardingAlgorithm {
+
+  def priorReport: Option[FullTestReport]
 
   def check(suiteName: String, shardContext: ShardContext): ShardResult
 
@@ -31,6 +33,8 @@ object ShardingAlgorithm {
 
       ShardResult(Some(testShard))
     }
+
+    def priorReport: Option[FullTestReport] = None
   }
 
   /** Will always mark the test to run on this shard. Useful for debugging or
@@ -40,6 +44,8 @@ object ShardingAlgorithm {
 
     def check(suiteName: String, shardContext: ShardContext): ShardResult =
       ShardResult(Some(shardContext.testShard))
+
+    def priorReport: Option[FullTestReport] = None
   }
 
   /** Will never mark the test to run on this shard. Useful for debugging or for
@@ -49,6 +55,8 @@ object ShardingAlgorithm {
 
     def check(suiteName: String, shardContext: ShardContext): ShardResult =
       ShardResult(None)
+
+    def priorReport: Option[FullTestReport] = None
   }
 
   object Balance {
@@ -57,14 +65,18 @@ object ShardingAlgorithm {
         reportDirectories: Seq[Path],
         shardsInfo: ShardingInfo,
         fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
-    ): Balance =
+    ): Balance = {
+      val priorReport = JUnitReportParser.parseDirectoriesRecursively(reportDirectories)
+
       ShardingAlgorithm.Balance(
-        JUnitReportParser.parseDirectoriesRecursively(reportDirectories).testReports.map { r =>
+        priorReport.testReports.map { r =>
           SuiteInfo(r.name, Some(Duration.ofMillis((r.timeTaken * 1000).toLong)))
         },
         shardsInfo,
-        fallbackShardingAlgorithm
+        fallbackShardingAlgorithm,
+        Some(priorReport)
       )
+    }
   }
 
   /** Attempts to balance the shards by execution time so that no one shard
@@ -73,7 +85,8 @@ object ShardingAlgorithm {
   final case class Balance(
       suites: Seq[SuiteInfo],
       shardsInfo: ShardingInfo,
-      fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
+      fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName,
+      priorReport: Option[FullTestReport] = None
   ) extends ShardingAlgorithm {
 
     // TODO: Median might be better here?
