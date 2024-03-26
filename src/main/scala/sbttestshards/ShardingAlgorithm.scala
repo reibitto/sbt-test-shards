@@ -10,8 +10,11 @@ import scala.util.hashing.MurmurHash3
 // This trait is open so that users can implement a custom `ShardingAlgorithm` if they'd like
 trait ShardingAlgorithm {
 
-  /** Determines whether the specified spec will run on this shard or not. */
-  def shouldRun(specName: String, shardContext: ShardContext): Boolean
+  def check(suiteName: String, shardContext: ShardContext): ShardResult
+
+  /** Determines whether the specified suite will run on this shard or not. */
+  def shouldRun(suiteName: String, shardContext: ShardContext): Boolean =
+    check(suiteName, shardContext).testShard.contains(shardContext.testShard)
 }
 
 object ShardingAlgorithm {
@@ -21,24 +24,31 @@ object ShardingAlgorithm {
     */
   final case object SuiteName extends ShardingAlgorithm {
 
-    override def shouldRun(specName: String, shardContext: ShardContext): Boolean =
-      MurmurHash3
-        .bytesHash(specName.getBytes(StandardCharsets.UTF_8))
-        .abs % shardContext.testShardCount == shardContext.testShard
+    def check(suiteName: String, shardContext: ShardContext): ShardResult = {
+      val testShard = MurmurHash3
+        .bytesHash(suiteName.getBytes(StandardCharsets.UTF_8))
+        .abs % shardContext.testShardCount
+
+      ShardResult(Some(testShard))
+    }
   }
 
   /** Will always mark the test to run on this shard. Useful for debugging or
     * for fallback algorithms.
     */
   final case object Always extends ShardingAlgorithm {
-    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = true
+
+    def check(suiteName: String, shardContext: ShardContext): ShardResult =
+      ShardResult(Some(shardContext.testShard))
   }
 
   /** Will never mark the test to run on this shard. Useful for debugging or for
     * fallback algorithms.
     */
   final case object Never extends ShardingAlgorithm {
-    override def shouldRun(specName: String, shardContext: ShardContext): Boolean = false
+
+    def check(suiteName: String, shardContext: ShardContext): ShardResult =
+      ShardResult(None)
   }
 
   object Balance {
@@ -50,7 +60,7 @@ object ShardingAlgorithm {
     ): Balance =
       ShardingAlgorithm.Balance(
         JUnitReportParser.parseDirectoriesRecursively(reportDirectories).testReports.map { r =>
-          SpecInfo(r.name, Some(Duration.ofMillis((r.timeTaken * 1000).toLong)))
+          SuiteInfo(r.name, Some(Duration.ofMillis((r.timeTaken * 1000).toLong)))
         },
         shardsInfo,
         fallbackShardingAlgorithm
@@ -61,14 +71,14 @@ object ShardingAlgorithm {
     * takes significantly longer to complete than another.
     */
   final case class Balance(
-      specs: Seq[SpecInfo],
+      suites: Seq[SuiteInfo],
       shardsInfo: ShardingInfo,
       fallbackShardingAlgorithm: ShardingAlgorithm = ShardingAlgorithm.SuiteName
   ) extends ShardingAlgorithm {
 
     // TODO: Median might be better here?
     private val averageTime: Option[Duration] = {
-      val allTimeTaken = specs.flatMap(_.timeTaken)
+      val allTimeTaken = suites.flatMap(_.timeTaken)
 
       allTimeTaken.reduceOption(_.plus(_)).map { d =>
         if (allTimeTaken.isEmpty) Duration.ZERO
@@ -80,7 +90,7 @@ object ShardingAlgorithm {
     // is NP-complete, there's a lot of room for improvement with other algorithms. Dynamic programming should be
     // possible here.
     def distributeEvenly: Map[TestSuiteInfoSimple, Int] = {
-      val allTests = specs
+      val allTests = suites
         .map(t => TestSuiteInfoSimple(t.name, t.timeTaken.getOrElse(averageTime.getOrElse(Duration.ZERO))))
         .sortBy(_.timeTaken)(Orderings.duration.reverse)
 
@@ -109,10 +119,17 @@ object ShardingAlgorithm {
       k.name -> v
     }
 
-    def shouldRun(specName: String, shardContext: ShardContext): Boolean =
-      bucketMap.get(specName) match {
-        case Some(bucketIndex) => bucketIndex == shardContext.testShard
-        case None              => fallbackShardingAlgorithm.shouldRun(specName, shardContext)
+    def check(suiteName: String, shardContext: ShardContext): ShardResult =
+      bucketMap.get(suiteName) match {
+        case Some(bucketIndex) =>
+//          shardContext.logger.info(s"Balanced $specName")
+
+          ShardResult(Some(bucketIndex))
+
+        case None =>
+          shardContext.logger.warn(s"Using fallback algorithm for $suiteName")
+
+          fallbackShardingAlgorithm.check(suiteName, shardContext)
       }
   }
 
