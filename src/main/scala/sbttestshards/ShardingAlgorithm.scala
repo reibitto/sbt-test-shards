@@ -1,6 +1,7 @@
 package sbttestshards
 
-import sbttestshards.parsers.{FullTestReport, JUnitReportParser}
+import sbttestshards.parsers.FullTestReport
+import sbttestshards.parsers.JUnitReportParser
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
@@ -10,8 +11,14 @@ import scala.util.hashing.MurmurHash3
 // This trait is open so that users can implement a custom `ShardingAlgorithm` if they'd like
 trait ShardingAlgorithm {
 
+  /** Prior test report that can be used by some sharding algorithms to optimize
+    * balancing tests across different shards.
+    */
   def priorReport: Option[FullTestReport]
 
+  /** Returns the result of whether the specified suite will run on this shard
+    * or not.
+    */
   def check(suiteName: String, shardContext: ShardContext): ShardResult
 
   /** Determines whether the specified suite will run on this shard or not. */
@@ -135,8 +142,6 @@ object ShardingAlgorithm {
     def check(suiteName: String, shardContext: ShardContext): ShardResult =
       bucketMap.get(suiteName) match {
         case Some(bucketIndex) =>
-//          shardContext.logger.info(s"Balanced $specName")
-
           ShardResult(Some(bucketIndex))
 
         case None =>
