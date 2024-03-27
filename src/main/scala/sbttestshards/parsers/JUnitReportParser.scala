@@ -1,11 +1,12 @@
 package sbttestshards.parsers
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Files
+import java.nio.file.Path
 import scala.jdk.CollectionConverters.*
 import scala.xml.XML
 
-final case class FullTestReport(testReports: Seq[SpecTestReport]) {
-  def specCount: Int = testReports.length
+final case class FullTestReport(testReports: Seq[SuiteReport]) {
+  def suiteCount: Int = testReports.length
 
   def testCount: Int = testReports.map(_.testCount).sum
 
@@ -18,7 +19,11 @@ final case class FullTestReport(testReports: Seq[SpecTestReport]) {
   def ++(other: FullTestReport): FullTestReport = FullTestReport(testReports ++ other.testReports)
 }
 
-final case class SpecTestReport(
+object FullTestReport {
+  def empty: FullTestReport = FullTestReport(Seq.empty)
+}
+
+final case class SuiteReport(
     name: String,
     testCount: Int,
     errorCount: Int,
@@ -66,10 +71,10 @@ object JUnitReportParser {
       }
     )
 
-  def parseReport(reportFile: Path): SpecTestReport = {
+  def parseReport(reportFile: Path): SuiteReport = {
     val xml = XML.loadFile(reportFile.toFile)
 
-    val specName = xml \@ "name"
+    val suiteName = xml \@ "name"
     val testCount = (xml \@ "tests").toInt
     val errorCount = (xml \@ "errors").toInt
     val failureCount = (xml \@ "failures").toInt
@@ -83,15 +88,14 @@ object JUnitReportParser {
         val testName = (node \@ "name").trim
 
         Some(testName)
-      } else {
+      } else
         None
-      }
     }.collect { case Some(testName) =>
       testName
     }
 
-    SpecTestReport(
-      name = specName,
+    SuiteReport(
+      name = suiteName,
       testCount = testCount,
       errorCount = errorCount,
       failureCount = failureCount,

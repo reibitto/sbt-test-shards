@@ -20,7 +20,7 @@ bit easier for you.
 Add the following to `project/plugins.sbt`:
 
 ```scala
-addSbtPlugin("com.github.reibitto" % "sbt-test-shards" % "0.1.0")
+addSbtPlugin("com.github.reibitto" % "sbt-test-shards" % "0.2.0")
 ```
 
 ## Configuration
@@ -72,18 +72,32 @@ shardingAlgorithm := ShardingAlgorithm.Balance(
 )
 ```
 
-As you can see, filling this out manually would be tedious. Ideally you'd want to derive
-this data structure from a test report. If that's not an option, you could also get away
-with only including your slowest test suites in this list and leave the rest to the fallback
-sharding algorithm.
+As you can see, filling this out manually would be tedious and would require constant maintenance
+as you add/remove tests (particularly if the tests are expensive). sbt automatically generates
+test report xml files (JUnit-compatible format) when tests are run, and sbt-test-shards can consume
+these reports so you don't have to manually manage this yourself. Example usage:
 
-Eventually this plugin will be able to consume test reports itself so that you won't have to
-worry about it at all.
+```scala
+shardingAlgorithm := ShardingAlgorithm.Balance.fromJUnitReports(
+  Seq(Paths.get(s"path-to-report-files")), // these will usually be located in the `target` folders
+  shardsInfo = ShardingInfo(testShardCount.value)
+)
+```
+
+For there to be test reports you have to first run `sbt test` on your entire project. And there's also
+the issue that these files won't exist in your CI environment unless you cache/store them somewhere.
+I'd recommend storing them remotely somewhere and then pulling them down in CI before running the tests.
+And upon successful CI completion, publish the newly generated test reports remotely to keep them up to date.
+This can be anywhere such as S3 or even storing them in an artifact as resources and publishing to a private
+Maven repo.
 
 ### Additional configuration
 
 If you're debugging and want to see logs in CI of which suites are set to run and which
 are skipped, you can use `testShardDebug := true`
+
+Also you can run `testDryRun` to see how each suite will be distributed without actually
+running all the tests and waiting for them to complete.
 
 ## CI Configuration
 
