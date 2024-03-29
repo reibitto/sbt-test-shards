@@ -44,6 +44,12 @@ testShard := yourShardId
 testShardCount := 5
 ```
 
+You may also need the following import depending on your project setup to have access to the keys:
+
+```scala
+import sbttestshards.TestShardsPlugin.autoImport.*
+```
+
 ### Sharding algorithms
 
 By default, the tests will be sharded by the test suite name (`ShardingAlgorithm.SuiteName`). 
