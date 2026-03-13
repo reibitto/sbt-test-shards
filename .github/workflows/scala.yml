@@ -23,4 +23,4 @@ jobs:
           java-version: ${{ matrix.java }}
 
       - name: Run tests
-        run: sbt ++${{ matrix.scala}} fmtCheck test
+        run: sbt ++${{ matrix.scala}} fmtCheck +test
