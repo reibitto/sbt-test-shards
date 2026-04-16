@@ -18,18 +18,18 @@ lazy val root = (project in file(".")).settings(
   crossScalaVersions := Seq("2.12.19", "3.8.1"),
   sbtPlugin := true,
   libraryDependencies ++= Seq(
-    "org.scalameta" %% "munit" % "0.7.29" % Test,
-    "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
+    "org.scalameta" %% "munit" % "1.3.0" % Test,
+    "org.scalameta" %% "munit-scalacheck" % "1.3.0" % Test
   ),
   (pluginCrossBuild / sbtVersion) := {
     scalaBinaryVersion.value match {
-      case "2.12" => "1.12.4"
+      case "2.12" => "1.12.9"
       case _      => "2.0.0-RC9"
     }
   },
   scriptedSbt := {
     scalaBinaryVersion.value match {
-      case "2.12" => "1.12.4"
+      case "2.12" => "1.12.9"
       case _      => (pluginCrossBuild / sbtVersion).value
     }
   }
