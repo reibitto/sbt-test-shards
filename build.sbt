@@ -15,11 +15,24 @@ lazy val root = (project in file(".")).settings(
   name := "sbt-test-shards",
   organization := "com.github.reibitto",
   scalaVersion := "2.12.19",
+  crossScalaVersions := Seq("2.12.19", "3.8.1"),
   sbtPlugin := true,
   libraryDependencies ++= Seq(
     "org.scalameta" %% "munit" % "0.7.29" % Test,
     "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
-  )
+  ),
+  (pluginCrossBuild / sbtVersion) := {
+    scalaBinaryVersion.value match {
+      case "2.12" => "1.12.4"
+      case _      => "2.0.0-RC9"
+    }
+  },
+  scriptedSbt := {
+    scalaBinaryVersion.value match {
+      case "2.12" => "1.12.4"
+      case _      => (pluginCrossBuild / sbtVersion).value
+    }
+  }
 )
 
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")

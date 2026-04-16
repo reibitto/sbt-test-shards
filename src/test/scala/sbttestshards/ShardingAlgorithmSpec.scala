@@ -13,7 +13,7 @@ class ShardingAlgorithmSpec extends ScalaCheckSuite {
   implicit val specInfoArbitrary: Arbitrary[SuiteInfo] = Arbitrary {
     for {
       specName  <- Gen.resize(30, Gen.alphaStr)
-      timeTaken <- Gen.choose(0L, 5 * 60 * 1000)
+      timeTaken <- Gen.choose(0L, 5L * 60 * 1000)
     } yield SuiteInfo(specName, Some(Duration.ofMillis(timeTaken)))
   }
 
