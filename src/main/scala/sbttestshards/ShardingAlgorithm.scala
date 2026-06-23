@@ -31,7 +31,7 @@ object ShardingAlgorithm {
   /** Shards by suite the name. This is the most reasonable default as it
     * requires no additional setup.
     */
-  final case object SuiteName extends ShardingAlgorithm {
+  case object SuiteName extends ShardingAlgorithm {
 
     def check(suiteName: String, shardContext: ShardContext): ShardResult = {
       val testShard = MurmurHash3
@@ -47,7 +47,7 @@ object ShardingAlgorithm {
   /** Will always mark the test to run on this shard. Useful for debugging or
     * for fallback algorithms.
     */
-  final case object Always extends ShardingAlgorithm {
+  case object Always extends ShardingAlgorithm {
 
     def check(suiteName: String, shardContext: ShardContext): ShardResult =
       ShardResult(Some(shardContext.testShard))
@@ -58,7 +58,7 @@ object ShardingAlgorithm {
   /** Will never mark the test to run on this shard. Useful for debugging or for
     * fallback algorithms.
     */
-  final case object Never extends ShardingAlgorithm {
+  case object Never extends ShardingAlgorithm {
 
     def check(suiteName: String, shardContext: ShardContext): ShardResult =
       ShardResult(None)
@@ -112,7 +112,7 @@ object ShardingAlgorithm {
     def distributeEvenly: Map[TestSuiteInfoSimple, Int] = {
       val allTests = suites
         .map(t => TestSuiteInfoSimple(t.name, t.timeTaken.getOrElse(averageTime.getOrElse(Duration.ZERO))))
-        .sortBy(_.timeTaken)(Orderings.duration.reverse)
+        .sortBy(_.timeTaken)(using Orderings.duration.reverse)
 
       val buckets = (0 until shardsInfo.shardCount).map { shardIndex =>
         TestBucket(

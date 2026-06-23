@@ -1,36 +1,27 @@
 import sbtwelcome.*
 
-inThisBuild(
-  List(
-    organization := "com.github.reibitto",
-    homepage := Some(url("https://github.com/reibitto/sbt-test-shards")),
-    licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
-    developers := List(
-      Developer("reibitto", "reibitto", "reibitto@users.noreply.github.com", url("https://reibitto.github.io"))
-    )
-  )
-)
+val scala2Version = "2.12.18"
+val scala3Version = "3.8.4"
 
 lazy val root = (project in file(".")).settings(
   name := "sbt-test-shards",
   organization := "com.github.reibitto",
-  scalaVersion := "2.12.19",
-  crossScalaVersions := Seq("2.12.19", "3.8.1"),
+  homepage := Some(url("https://github.com/reibitto/sbt-welcome")),
+  licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
+  developers := List(
+    Developer("reibitto", "reibitto", "reibitto@users.noreply.github.com", url("https://reibitto.github.io"))
+  ),
+  scalaVersion := scala3Version,
+  crossScalaVersions := Seq(scala2Version, scala3Version),
   sbtPlugin := true,
   libraryDependencies ++= Seq(
-    "org.scalameta" %% "munit" % "1.3.0" % Test,
+    "org.scalameta" %% "munit" % "1.3.3" % Test,
     "org.scalameta" %% "munit-scalacheck" % "1.3.0" % Test
   ),
   (pluginCrossBuild / sbtVersion) := {
     scalaBinaryVersion.value match {
-      case "2.12" => "1.12.9"
-      case _      => "2.0.0-RC9"
-    }
-  },
-  scriptedSbt := {
-    scalaBinaryVersion.value match {
-      case "2.12" => "1.12.9"
-      case _      => (pluginCrossBuild / sbtVersion).value
+      case "2.12" => "1.12.12"
+      case _      => "2.0.0"
     }
   }
 )
@@ -64,11 +55,3 @@ usefulTasks := Seq(
 )
 
 logoColor := scala.Console.MAGENTA
-
-ThisBuild / organization := "com.github.reibitto"
-
-ThisBuild / publishTo := {
-  val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
-  if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
-  else localStaging.value
-}
